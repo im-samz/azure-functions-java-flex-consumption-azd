@@ -8,6 +8,7 @@ param runtimeName string
 param runtimeVersion string 
 param serviceName string = 'api'
 param storageAccountName string
+param deploymentStorageContainerName string
 param virtualNetworkSubnetId string = ''
 param instanceMemoryMB int = 2048
 param maximumInstanceCount int = 100
@@ -31,6 +32,7 @@ module api '../core/host/functions-flexconsumption.bicep' = {
     runtimeName: runtimeName
     runtimeVersion: runtimeVersion
     storageAccountName: storageAccountName
+    deploymentStorageContainerName: deploymentStorageContainerName
     virtualNetworkSubnetId: virtualNetworkSubnetId
     instanceMemoryMB: instanceMemoryMB 
     maximumInstanceCount: maximumInstanceCount

@@ -1,6 +1,6 @@
 <!--
 ---
-description: This repository contains an Azure Functions HTTP trigger quickstart written in Java and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (AZD). This sample uses managed identity and a virtual network to insure it's secure by default.
+description: This repository contains an Azure Functions HTTP trigger quickstart written in Java and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample uses managed identity and a virtual network (VNet) to ensure a secure by default environment. You can opt out of a VNet being used in the same by setting `SKIP_VNET` to `true` in the parameters.
 page_type: sample
 products:
 - azure-functions

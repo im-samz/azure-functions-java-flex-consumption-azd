@@ -28,7 +28,8 @@ param vNetName string = ''
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
-
+var functionAppName = !empty(apiServiceName) ? apiServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
+var deploymentStorageContainerName = 'app-package-${take(functionAppName, 32)}-${take(toLower(uniqueString(functionAppName, resourceToken)), 7)}'
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -37,7 +38,7 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
-// User assigned managed identity to be used by the Function App to reach storage and service bus
+// User assigned managed identity to be used by the function app to reach storage and service bus
 module apiUserAssignedIdentity './core/identity/userAssignedIdentity.bicep' = {
   name: 'apiUserAssignedIdentity'
   scope: rg
@@ -49,11 +50,25 @@ module apiUserAssignedIdentity './core/identity/userAssignedIdentity.bicep' = {
 }
 
 // The application backend
+module appServicePlan './core/host/appserviceplan.bicep' = {
+  name: 'appserviceplan'
+  scope: rg
+  params: {
+    name: !empty(appServicePlanName) ? appServicePlanName : '${abbrs.webServerFarms}${resourceToken}'
+    location: location
+    tags: tags
+    sku: {
+      name: 'FC1'
+      tier: 'FlexConsumption'
+    }
+  }
+}
+
 module api './app/api.bicep' = {
   name: 'api'
   scope: rg
   params: {
-    name: !empty(apiServiceName) ? apiServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
+    name: functionAppName
     location: location
     tags: tags
     applicationInsightsName: monitoring.outputs.applicationInsightsName
@@ -61,6 +76,7 @@ module api './app/api.bicep' = {
     runtimeName: 'java'
     runtimeVersion: '17'
     storageAccountName: storage.outputs.name
+    deploymentStorageContainerName: deploymentStorageContainerName
     identityId: apiUserAssignedIdentity.outputs.identityId
     identityClientId: apiUserAssignedIdentity.outputs.identityClientId
     appSettings: {
@@ -77,7 +93,7 @@ module storage './core/storage/storage-account.bicep' = {
     name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
     location: location
     tags: tags
-    containers: [{name: 'deploymentpackage'}]
+    containers: [{name: deploymentStorageContainerName}]
     publicNetworkAccess: skipVnet ? 'Enabled' : 'Disabled'
     networkAcls: skipVnet ? {} : {
       defaultAction: 'Deny'
@@ -98,21 +114,7 @@ module storageRoleAssignmentApi 'app/storage-Access.bicep' = {
   }
 }
 
-module appServicePlan './core/host/appserviceplan.bicep' = {
-  name: 'appserviceplan'
-  scope: rg
-  params: {
-    name: !empty(appServicePlanName) ? appServicePlanName : '${abbrs.webServerFarms}${resourceToken}'
-    location: location
-    tags: tags
-    sku: {
-      name: 'FC1'
-      tier: 'FlexConsumption'
-    }
-  }
-}
-
-// Virtual Network & private endpoint
+// Virtual Network & private endpoint to blob storage
 module serviceVirtualNetwork 'app/vnet.bicep' =  if (!skipVnet) {
   name: 'serviceVirtualNetwork'
   scope: rg
